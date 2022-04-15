@@ -19,8 +19,22 @@ RESET="\033[00m"       # Normal
 
 
 echo -e "${RED}[+]${BLUE} Instalar craclmapexec ${RESET}"
-#apt install bloodhound neo4j
-docker pull neo4j
-docker run -p 7474:7474 -p 7687:7687 neo4j
+apt install bloodhound neo4j rdate
+
 docker pull byt3bl33d3r/crackmapexec
 cp ADtester.sh /usr/bin/
+
+rm /usr/bin/cme 2>/dev/null
+echo "alias cme='docker run  -it byt3bl33d3r/crackmapexec'" >> ~/.bashrc
+
+echo -e "${RED}[+]${BLUE} Instalar bloodhound ${RESET}"
+apt-get install bloodhound
+pip install bloodhound 
+
+
+echo -e "${GREEN} [+] Modificando PATH ${RESET}"
+cp -r ADTestBin /usr/bin/ADTestBin/
+chmod a+x /usr/bin/ADTestBin/*
+echo export PATH="$PATH:/usr/bin/ADTestBin" >> ~/.bashrc
+echo export PATH="$PATH:/usr/bin/ADTestBin" >> ~/.zshrc
+echo ""
