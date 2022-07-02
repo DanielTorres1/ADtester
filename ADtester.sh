@@ -141,4 +141,9 @@ cat logs/enumeracion/"$TARGET"_ActiveDirectory_servicePrincipalNames.txt > .enum
 echo -e "[+] \t Enumerar con bloodhound"	
 bloodhound-python -d $DOMAIN -u $USER -p $PASSWORD -gc $HOSTNAME -c all -ns $TARGET
 
+echo -e "[+] \t Enumerar con ldapdomaindump"	
+ldapdomaindump -u $DOMAIN\\$USER -p $PASSWORD $TARGET
+
+
+
 insert_data
