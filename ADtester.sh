@@ -134,7 +134,8 @@ gMSADumper.py -u $USER -p $PASSWORD -d $DOMAIN | tee -a logs/vulnerabilidades/"$
 grep '::' logs/vulnerabilidades/"$TARGET"_ActiveDirectory_gMSADumper.txt > .vulnerabilidades/"$TARGET"_ActiveDirectory_gMSADumper.txt
 
 echo -e "[+] \t  Get servicePrincipalNames"	
-ldapsearch -x -h $TARGET -p 389 -D $USER  -w $PASSWORD -b "dc=$DOMAIN1,dc=$DOMAIN2" -s sub"(&(objectCategory=person)(objectClass=user)(!(useraccountcontrol:1.2.840.1 13556.1.4.803:=2))(serviceprincipalname=*/*))" serviceprincipalname | grep -B 1 servicePrincipalName > logs/enumeracion/"$TARGET"_ActiveDirectory_servicePrincipalNames.txt
+ldapsearch -x -H "ldap://$TARGET" -D $USER  -w $PASSWORD -b "dc=$DOMAIN1,dc=$DOMAIN2" -s sub"(&(objectCategory=person)(objectClass=user)(!(useraccountcontrol:1.2.840.1 13556.1.4.803:=2))(serviceprincipalname=*/*))" serviceprincipalname | grep -B 1 servicePrincipalName > logs/enumeracion/"$TARGET"_ActiveDirectory_servicePrincipalNames.txt
+
 cat logs/enumeracion/"$TARGET"_ActiveDirectory_servicePrincipalNames.txt > .enumeracion/"$TARGET"_ActiveDirectory_servicePrincipalNames.txt
 
 
