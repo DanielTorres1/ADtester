@@ -19,7 +19,7 @@ RESET="\033[00m"       # Normal
 
 
 echo -e "${RED}[+]${BLUE} Instalar craclmapexec ${RESET}"
-apt install bloodhound neo4j rdate ldapdomaindump
+apt install ldapdomaindump
 
 docker pull byt3bl33d3r/crackmapexec
 cp ADtester.sh /usr/bin/
@@ -28,7 +28,7 @@ rm /usr/bin/cme 2>/dev/null
 echo "alias cme='docker run  -it byt3bl33d3r/crackmapexec'" >> ~/.bashrc
 
 echo -e "${RED}[+]${BLUE} Instalar bloodhound ${RESET}"
-apt-get install bloodhound
+apt-get install bloodhound neo4j rdate
 pip install bloodhound future ldap3 dnspython
 
 
