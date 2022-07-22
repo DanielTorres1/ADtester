@@ -60,11 +60,23 @@ DOMAIN2=${arrIN[1]}
 
 echo "$TARGET $DOMAIN" >> /etc/hosts
 echo "DOMAIN1 $DOMAIN1 DOMAIN2 $DOMAIN2"
+
 #Listar usuarios
 echo -e "[+] Listar usuarios \n"  
-#docker run  -it byt3bl33d3r/crackmapexec smb $TARGET -u $USER -p "$PASSWORD" --users | tee -a logs/enumeracion/"$TARGET"_ActiveDirectory_users.txt
 GetADUsers.py -all $DOMAIN/$USER:"$PASSWORD" -dc-ip $TARGET | tee -a logs/enumeracion/"$TARGET"_ActiveDirectory_users.txt
-cat logs/enumeracion/"$TARGET"_ActiveDirectory_users.txt  | sed -r "s/\x1B\[([0-9]{1,3}(;[0-9]{1,2})?)?[mGK]//g" > .enumeracion/"$TARGET"_ActiveDirectory_users.txt
+egrep -iq "invalidCredentials" logs/enumeracion/"$TARGET"_ActiveDirectory_users.txt
+greprc=$?
+if [[ $greprc -eq 0 ]] ; then			
+  echo "[!] invalidCredential"
+  exit
+else
+   cat logs/enumeracion/"$TARGET"_ActiveDirectory_users.txt  | sed -r "s/\x1B\[([0-9]{1,3}(;[0-9]{1,2})?)?[mGK]//g" > .enumeracion/"$TARGET"_ActiveDirectory_users.txt		
+fi	
+
+
+ldapsearch-ad.py -l $TARGET -d $DOMAIN -u $USER -p $PASSWORD -t info > logs/enumeracion/"$TARGET"_ActiveDirectory_info.txt
+cat logs/enumeracion/"$TARGET"_ActiveDirectory_info.txt | sed -r "s/\x1B\[([0-9]{1,3}(;[0-9]{1,2})?)?[mGK]//g" > .enumeracion/"$TARGET"_ActiveDirectory_info.txt
+
 
 #Listar grupos
 echo -e "[+] Listar grupos \n"  
@@ -74,7 +86,7 @@ grep --color=never "membercount" logs/enumeracion/"$TARGET"_ActiveDirectory_grou
 #Listar compartidos
 echo -e "[+] Listar recursos compartidos \n"  
 docker run  -it byt3bl33d3r/crackmapexec smb $TARGET -u $USER -p "$PASSWORD" --shares | tee -a logs/vulnerabilidades/"$TARGET"_ActiveDirectory_shares.txt
-egrep -ira --color=never "READ|WRITE" logs/vulnerabilidades/"$TARGET"_ActiveDirectory_shares.txt  | sed -r "s/\x1B\[([0-9]{1,3}(;[0-9]{1,2})?)?[mGK]//g" > .vulnerabilidades/"$TARGET"_ActiveDirectory_compartidoSMB.txt
+egrep -ira --color=never "READ|WRITE" logs/vulnerabilidades/"$TARGET"_ActiveDirectory_shares.txt  | sed -r "s/\x1B\[([0-9]{1,3}(;[0-9]{1,2})?)?[mGK]//g" > .vulnerabilidades/"$TARGET"_ActiveDirectory_shares.txt
 
 #Listar sesiones activas
 echo -e "[+] Listar sesiones activas \n"  
@@ -119,14 +131,11 @@ docker run  -it byt3bl33d3r/crackmapexec smb $TARGET -u $USER -p "$PASSWORD" -M 
 grep -a "Found" logs/vulnerabilidades/"$TARGET"_ActiveDirectory_gppAutologin.txt | sed -r "s/\x1B\[([0-9]{1,3}(;[0-9]{1,2})?)?[mGK]//g" | strings | awk '{print $7}' | sort -r | uniq > .vulnerabilidades/"$TARGET"_ActiveDirectory_gppAutologin.txt
 
 docker run  -it byt3bl33d3r/crackmapexec smb $TARGET -u $USER -p "$PASSWORD" -M gpp_password | sed -r "s/\x1B\[([0-9]{1,3}(;[0-9]{1,2})?)?[mGK]//g" | tee -a logs/vulnerabilidades/"$TARGET"_ActiveDirectory_gppPassword.txt
-grep -a "Policies" logs/vulnerabilidades/"$TARGET"_ActiveDirectory_gppPassword.txt | strings | awk '{print $7}' | sort | uniq > .vulnerabilidades/"$TARGET"_ActiveDirectory_gppPassword.txt
-grep -a "Password" logs/vulnerabilidades/"$TARGET"_ActiveDirectory_gppPassword.txt | strings  | sort -r | uniq >> .vulnerabilidades/"$TARGET"_ActiveDirectory_gppPassword.txt
+grep --color=never -b0 -A11 "Found credentials in" logs/vulnerabilidades/"$TARGET"_ActiveDirectory_gppPassword.txt > .vulnerabilidades/"$TARGET"_ActiveDirectory_gppPassword.txt
 
+#grep -a "Policies" logs/vulnerabilidades/"$TARGET"_ActiveDirectory_gppPassword.txt | strings | awk '{print $7}' | sort | uniq > .vulnerabilidades/"$TARGET"_ActiveDirectory_gppPassword.txt
+#grep -a "Password" logs/vulnerabilidades/"$TARGET"_ActiveDirectory_gppPassword.txt | strings  | sort -r | uniq >> .vulnerabilidades/"$TARGET"_ActiveDirectory_gppPassword.txt
 
-# numerar usuarios"
-echo -e "[+] \t Enumerar usuarios"	
-msfconsole -x "use auxiliary/scanner/smb/smb_enumusers;set RHOSTS $TARGET; set SMBDomain $DOMAIN; set SMBUser $USER; set SMBPass $PASSWORD ;run;exit" > logs/enumeracion/"$TARGET"_"$port"_smbEnumusers.txt 2>/dev/null							   
-egrep --color=never -i "RID" logs/enumeracion/"$TARGET"_"$port"_smbEnumusers.txt  >> .enumeracion/"$TARGET"_"$port"_smbEnumusers.txt
 
 # Reads any Group Managed Service Accounts (GMSAs) password blobs the user can access and parses the values.
 echo -e "[+] \t  Group Managed Service Accounts "	
@@ -134,17 +143,18 @@ gMSADumper.py -u $USER -p $PASSWORD -d $DOMAIN | tee -a logs/vulnerabilidades/"$
 grep '::' logs/vulnerabilidades/"$TARGET"_ActiveDirectory_gMSADumper.txt > .vulnerabilidades/"$TARGET"_ActiveDirectory_gMSADumper.txt
 
 echo -e "[+] \t  Get servicePrincipalNames"	
-ldapsearch -x -H "ldap://$TARGET" -D $USER  -w $PASSWORD -b "dc=$DOMAIN1,dc=$DOMAIN2" -s sub"(&(objectCategory=person)(objectClass=user)(!(useraccountcontrol:1.2.840.1 13556.1.4.803:=2))(serviceprincipalname=*/*))" serviceprincipalname | grep -B 1 servicePrincipalName > logs/enumeracion/"$TARGET"_ActiveDirectory_servicePrincipalNames.txt
+#ldapsearch -x -H "ldap://$TARGET" -D $USER  -w $PASSWORD -b "dc=$DOMAIN1,dc=$DOMAIN2" -s sub"(&(objectCategory=person)(objectClass=user)(!(useraccountcontrol:1.2.840.1 13556.1.4.803:=2))(serviceprincipalname=*/*))" serviceprincipalname | grep -B 1 servicePrincipalName > logs/enumeracion/"$TARGET"_ActiveDirectory_servicePrincipalNames.txt
+GetUserSPNs.py -dc-ip $TARGET $DOMAIN/$USER:"$PASSWORD"  > logs/enumeracion/"$TARGET"_ActiveDirectory_servicePrincipalNames.txt
+grep --color=never 'CN' logs/enumeracion/"$TARGET"_ActiveDirectory_servicePrincipalNames.txt > .enumeracion/"$TARGET"_ActiveDirectory_servicePrincipalNames.txt
 
-cat logs/enumeracion/"$TARGET"_ActiveDirectory_servicePrincipalNames.txt > .enumeracion/"$TARGET"_ActiveDirectory_servicePrincipalNames.txt
 
-
-echo -e "[+] \t Enumerar con bloodhound"	
+echo -e "[+] \t Enumerar con bloodhound"
+mkdir -p bloodhound/$TARGET
+cd bloodhound/$TARGET
 bloodhound-python -d $DOMAIN -u $USER -p $PASSWORD -gc $HOSTNAME -c all -ns $TARGET
+cd ../../
 
-echo -e "[+] \t Enumerar con ldapdomaindump"	
-ldapdomaindump -u $DOMAIN\\$USER -p $PASSWORD $TARGET
-
-
+#echo -e "[+] \t Enumerar con ldapdomaindump"	
+#ldapdomaindump -u $DOMAIN\\$USER -p $PASSWORD $TARGET
 
 insert_data
